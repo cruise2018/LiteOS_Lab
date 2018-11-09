@@ -142,7 +142,7 @@ struct socket_item
 };
 static struct socket_item *g_socket_cb[cn_5320e_socket_max];
 
-//not support udp yet
+//not support tcp yet
 static s32_t socket_connect(const char* host, const char* port, int proto)
 {
     u8_t cmdbuf[64];

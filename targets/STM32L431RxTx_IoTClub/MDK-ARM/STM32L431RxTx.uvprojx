@@ -337,7 +337,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32L431xx</Define>
               <Undefine></Undefine>
-              <IncludePath>../Inc;..\..\..\drivers\third_party\ST\STM32L4xx_HAL_Driver\Inc;..\..\..\drivers\third_party\ST\STM32L4xx_HAL_Driver\Inc\Legacy;..\Hardware\OLED;..\Hardware\BC95;..\Hardware\BH1750;..\Hardware\DHT11;..\Hardware\GPS;..\..\..\components\cmsis;..\..\..\components\cmsis\1.0;..\..\..\components\cmsis\2.0;..\..\..\kernel\base\include;..\..\..\kernel\include;..\..\..\kernel\extended\include;..\..\..\arch\arm\arm-m\include;..\..\..\arch\arm\arm-m\cortex-m4;..\..\..\examples\include;..\OS_CONFIG;..\..\..\components\at;..\..\..\components\osport;..\..\..\components\shell;..\..\..\include</IncludePath>
+              <IncludePath>../Inc;..\..\..\drivers\third_party\ST\STM32L4xx_HAL_Driver\Inc;..\..\..\drivers\third_party\ST\STM32L4xx_HAL_Driver\Inc\Legacy;..\Hardware\OLED;..\Hardware\BC95;..\Hardware\BH1750;..\Hardware\DHT11;..\Hardware\GPS;..\..\..\components\cmsis;..\..\..\components\cmsis\1.0;..\..\..\components\cmsis\2.0;..\..\..\kernel\base\include;..\..\..\kernel\include;..\..\..\kernel\extended\include;..\..\..\arch\arm\arm-m\include;..\..\..\arch\arm\arm-m\cortex-m4;..\..\..\examples\include;..\OS_CONFIG;..\..\..\components\at;..\..\..\components\osport;..\..\..\components\shell;..\..\..\include;..\..\..\include\osdepends\liteos</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
