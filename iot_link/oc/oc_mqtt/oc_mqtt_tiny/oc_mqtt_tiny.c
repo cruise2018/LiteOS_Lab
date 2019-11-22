@@ -87,10 +87,13 @@ static const char s_oc_mqtt_ca_crt[] =
 
 ///< devices normal data report and receive topic format
 #define CN_CLIENT_ID_FMT                    "%s_2_0_%s"
-#define CN_OC_HUB_CMD_TOPIC_FMT             "/huawei/v1/devices/%s/command/json"
-#define CN_OC_HUB_REPORT_TOPIC_FMT          "/huawei/v1/devices/%s/data/json"
+
 #define CN_OC_BS_REPORT_TOPIC_FMT           "/huawei/v1/devices/%s/iodpsData"
 #define CN_OC_BS_CMD_TOPIC_FMT              "/huawei/v1/devices/%s/iodpsCommand"
+
+#define CN_OC_HUB_PUBTOPIC_DEFAULT_FMT      "$oc/devices/%s/sys/messages/up"
+#define CN_OC_HUB_SUBTOPIC_DEFAULT_FMT      "$oc/devices/%s/sys/messages/down"
+
 
 /*The unit is millisecond*/
 #define CN_CON_BACKOFF_TIME     (1000)   ///< UNIT:ms
@@ -98,8 +101,21 @@ static const char s_oc_mqtt_ca_crt[] =
 #define CN_HMAC_LEN              32
 
 
-#define CN_STRING_MAXLEN    127
+#define CN_STRING_MAXLEN      127
 #define IS_VALID_STRING(name) (strnlen((name), CN_STRING_MAXLEN + 1) <= CN_STRING_MAXLEN)
+
+
+#define CN_NEW_TOPIC_NUM   6
+const char *s_new_topic_fmt[CN_NEW_TOPIC_NUM]=
+{
+    "$oc/devices/%s/sys/sub_device_manage/messages/down",
+    "$oc/devices/%s/sys/commands/+",
+    "$oc/devices/%s/sys/properties/set/+",
+    "$oc/devices/%s/sys/properties/get/+",
+    "$oc/devices/%s/sys/configurations/+",
+    "$oc/devices/%s/sys/device/+",
+};
+
 
 typedef struct
 {
@@ -151,9 +167,10 @@ typedef struct
         }bits;
     }flag;
     oc_bs_mqtt_cb_t     bs_cb;
-    void               *task_daemon;            ///< oc mqtt lite daemon task
-    queue_t            *task_daemon_cmd_queue;  ///< oc mqtt lite daemon task command queue
-    char                salt_time[16];          ///< salt time for the connect
+    void               *task_daemon;                ///< oc mqtt lite daemon task
+    queue_t            *task_daemon_cmd_queue;      ///< oc mqtt lite daemon task command queue
+    char                salt_time[16];              ///< salt time for the connect
+    char               *hub_sub_topic[CN_NEW_TOPIC_NUM];
 }oc_mqtt_tiny_cb_t;   ///< i think we may only got one mqtt
 static oc_mqtt_tiny_cb_t *s_oc_mqtt_tiny_cb;
 
@@ -374,6 +391,16 @@ static int config_parameter_release(oc_mqtt_tiny_cb_t *cb)
 
     osal_free(cb->bs_cb.hubserver_port);
 
+    int i = 0;
+    for(i = 0;i < CN_NEW_TOPIC_NUM;i++)
+    {
+        if(NULL != cb->hub_sub_topic[i])
+        {
+            osal_free(cb->hub_sub_topic[i]);
+        }
+    }
+    memset(&cb->hub_sub_topic,0,sizeof(cb->hub_sub_topic));
+
     memset(&cb->config,0,sizeof(oc_mqtt_config_t));
 
     memset(&cb->bs_cb,0,sizeof(oc_bs_mqtt_cb_t));
@@ -425,7 +452,6 @@ static int config_parameter_clone(oc_mqtt_tiny_cb_t *cb,oc_mqtt_config_t *config
     cb->config.server_addr = osal_strdup(config->server_addr);
     cb->config.server_port = osal_strdup(config->server_port);
 
-
     if((NULL == cb->config.id) || (NULL == cb->config.pwd) ||\
        (NULL == cb->config.server_addr) || (NULL == cb->config.server_port))
     {
@@ -433,6 +459,19 @@ static int config_parameter_clone(oc_mqtt_tiny_cb_t *cb,oc_mqtt_config_t *config
         ret = en_oc_mqtt_err_sysmem;
         return ret;
     }
+
+    int i = 0;
+    for(i = 0;i < CN_NEW_TOPIC_NUM;i++)
+    {
+        cb->hub_sub_topic[i] = topic_fmt((char *)s_new_topic_fmt[i],cb->config.id);
+        if(NULL == cb->hub_sub_topic[i])
+        {
+            config_parameter_release(cb);
+            ret = en_oc_mqtt_err_sysmem;
+            return ret;
+        }
+    }
+
 
     ret = en_oc_mqtt_err_ok;
     return ret;
@@ -510,9 +549,10 @@ static int oc_mqtt_para_gernerate(oc_mqtt_tiny_cb_t *cb)
     }
     else
     {
-        cb->mqtt_para.default_pub_topic = topic_fmt(CN_OC_HUB_REPORT_TOPIC_FMT,cb->config.id);
 
-        cb->mqtt_para.default_sub_topic = topic_fmt(CN_OC_HUB_CMD_TOPIC_FMT,cb->config.id);
+        cb->mqtt_para.default_pub_topic = topic_fmt(CN_OC_HUB_PUBTOPIC_DEFAULT_FMT,cb->config.id);
+
+        cb->mqtt_para.default_sub_topic = topic_fmt(CN_OC_HUB_SUBTOPIC_DEFAULT_FMT,cb->config.id);
 
         cb->mqtt_para.default_msg_deal = hub_msg_default_deal;
 
@@ -640,7 +680,7 @@ static int dmp_subscribe(oc_mqtt_tiny_cb_t *cb)
     subpara.topic.data = cb->mqtt_para.default_sub_topic ;
     subpara.topic.len = strlen(subpara.topic.data );
 
-    printf("oc_mqtt_subscribe:topic:%s\n\r",subpara.topic.data);
+    printf("oc_mqtt_default_subscribe:topic:%s\n\r",subpara.topic.data);
 
     ret = mqtt_al_subscribe(cb->mqtt_para.mqtt_handle,&subpara);
     if(0 != ret)
@@ -648,8 +688,32 @@ static int dmp_subscribe(oc_mqtt_tiny_cb_t *cb)
         ret = en_oc_mqtt_err_subscribe;
     }
 
-    printf("oc_mqtt_subscribe:retcode:%d:%s\n\r",ret,ret==0?"SUCCESS":"FAIL");
+    printf("oc_mqtt_default_subscribe:retcode:%d:%s\n\r",ret,oc_mqtt_err(ret));
 
+    ///if not the bs mode, then subscribe all the other topic
+    if(cb->flag.bits.bit_daemon_status != en_daemon_status_bs_getaddr)
+    {
+        int i = 0;
+        for(i =0;i<CN_NEW_TOPIC_NUM;i++)
+        {
+            subpara.arg = cb;
+            subpara.qos = en_mqtt_al_qos_1;
+            subpara.topic.data = cb->hub_sub_topic[i] ;
+            subpara.topic.len = strlen(subpara.topic.data );
+
+            printf("oc_mqtt_subscribe:topic:%s\n\r",subpara.topic.data);
+
+            ret = mqtt_al_subscribe(cb->mqtt_para.mqtt_handle,&subpara);
+
+            printf("oc_mqtt_subscribe:retcode:%d:%s\n\r",ret,oc_mqtt_err(ret));
+            if(0 != ret)
+            {
+                 ret = en_oc_mqtt_err_subscribe;
+                 break;
+            }
+        }
+
+    }
 
     return ret;
 }
