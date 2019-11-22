@@ -90,9 +90,8 @@ static const char s_oc_mqtt_ca_crt[] =
 
 #define CN_OC_BS_REPORT_TOPIC_FMT           "/huawei/v1/devices/%s/iodpsData"
 #define CN_OC_BS_CMD_TOPIC_FMT              "/huawei/v1/devices/%s/iodpsCommand"
-
-#define CN_OC_HUB_PUBTOPIC_DEFAULT_FMT      "$oc/devices/%s/sys/messages/up"
-#define CN_OC_HUB_SUBTOPIC_DEFAULT_FMT      "$oc/devices/%s/sys/messages/down"
+#define CN_OC_HUB_SUBTOPIC_DEFAULT_FMT      "/huawei/v1/devices/%s/command/json"
+#define CN_OC_HUB_PUBTOPIC_DEFAULT_FMT      "/huawei/v1/devices/%s/data/json"
 
 
 /*The unit is millisecond*/
@@ -105,10 +104,11 @@ static const char s_oc_mqtt_ca_crt[] =
 #define IS_VALID_STRING(name) (strnlen((name), CN_STRING_MAXLEN + 1) <= CN_STRING_MAXLEN)
 
 
-#define CN_NEW_TOPIC_NUM   6
+#define CN_NEW_TOPIC_NUM   7
 const char *s_new_topic_fmt[CN_NEW_TOPIC_NUM]=
 {
     "$oc/devices/%s/sys/sub_device_manage/messages/down",
+    "$oc/devices/%s/sys/messages/down",
     "$oc/devices/%s/sys/commands/+",
     "$oc/devices/%s/sys/properties/set/+",
     "$oc/devices/%s/sys/properties/get/+",
@@ -777,7 +777,7 @@ static int hub_step(oc_mqtt_tiny_cb_t  *cb)
 
 EXIT_ERR:
     oc_mqtt_para_release(cb);
-    printf("%s:err:%d n\r",__FUNCTION__,ret);
+    printf("%s:err:%d \n\r",__FUNCTION__,ret);
     return ret;
 
 }
