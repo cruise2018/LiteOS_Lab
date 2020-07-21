@@ -528,3 +528,150 @@ int oc_mqtt_profile_getshadow(char *deviceid,oc_mqtt_profile_shadowget_t *payloa
 }
 
 
+#define CN_OC_MQTT_PROFILE_EVENT_TOPICFMT   "$oc/devices/%s/events/up"
+int oc_mqtt_profile_reportevent(char *deviceid,oc_mqtt_profile_event_t *event)
+{
+    int ret = (int)en_oc_mqtt_err_parafmt;
+    char *topic;
+    char *msg;
+
+    if(NULL == deviceid){
+        if(NULL == s_oc_mqtt_profile_cb.device_id){
+            return ret;
+        }
+        else{
+            deviceid = s_oc_mqtt_profile_cb.device_id;
+        }
+    }
+
+    if((event == NULL) || (event->event_type == NULL) || (event->event_type == NULL)){
+        return ret;
+    }
+
+    topic = topic_make(CN_OC_MQTT_PROFILE_EVENT_TOPICFMT, deviceid,NULL);
+    msg = oc_mqtt_profile_package_event(event);
+
+    if((topic != NULL) && (msg != NULL)){
+        ret = oc_mqtt_publish(topic,(uint8_t *)msg,strlen(msg),(int)en_mqtt_al_qos_1);
+    }
+    else{
+        ret = (int)en_oc_mqtt_err_sysmem;
+    }
+
+    osal_free(topic);
+    osal_free(msg);
+
+    return ret;
+}
+
+
+
+/**
+Topic: $oc/devices/{device_id}/sys/events/up
+数据格式：
+{
+    "object_device_id": "{object_device_id}",
+    "services": [{
+        "service_id": "$ota",
+        "event_type": "version_report",
+        "event_time": "20151212T121212Z",
+        "paras": {
+            "sw_version": "v1.0",
+            "fw_version": "v1.0"
+        }
+    }]
+}
+*/
+///< you could use this function to report the software or firmware version
+int OcMqttReportVersionEvent(const char *deviceID, const char *softVersion, const char *firmVersion)
+{
+    int ret = -1;
+    oc_mqtt_profile_kv_t    firmVer;
+    oc_mqtt_profile_kv_t    softVer;
+    oc_mqtt_profile_kv_t *cur = NULL;
+    oc_mqtt_profile_event_t event;
+
+    if(softVersion != NULL){
+        softVer.key = CN_OC_JSON_KEY_SWVERSION;
+        softVer.type = EN_OC_MQTT_PROFILE_VALUE_STRING;
+        softVer.value = (void *)softVersion;
+        softVer.nxt = cur;
+        cur = &softVer;
+    }
+
+    if(firmVersion != NULL){
+        firmVer.key =  CN_OC_JSON_KEY_FWVERSION;
+        firmVer.type = EN_OC_MQTT_PROFILE_VALUE_STRING;
+        firmVer.value = (void *)firmVersion;
+        firmVer.nxt = cur;
+        cur = &firmVer;
+    }
+
+    event.event_time = NULL;
+    event.event_type = "version_report";
+    event.service_id = "$ota";
+    event.paras = cur;
+
+    ret = oc_mqtt_profile_reportevent((char *)deviceID, &event);
+
+    return ret;
+}
+
+
+
+///< data format
+//Topic: $oc/devices/{device_id}/sys/events/up
+//{
+//    "object_device_id": "{object_device_id}",
+//    "services": [{
+//        "service_id": "$ota",
+//        "event_type": "upgrade_progress_report",
+//        "event_time": "20151212T121212Z",
+//        "paras": {
+//            "result_code": 0,
+//            "progress": 80,
+//            "version": "V2.0",
+//            "description": "upgrade processing"
+//        }
+//    }]
+//}
+int OcMqttReportUpgradeProcessEvent(const char *deviceID, int upgraderet, const char *version, int progress)
+{
+    int ret = -1;
+    oc_mqtt_profile_kv_t    prog;
+    oc_mqtt_profile_kv_t    resultCode;
+    oc_mqtt_profile_kv_t    ver;
+    oc_mqtt_profile_kv_t   *cur = NULL;
+    oc_mqtt_profile_event_t event;
+
+    resultCode.key = CN_OC_JSON_KEY_RESULTCODE;
+    resultCode.type = EN_OC_MQTT_PROFILE_VALUE_INT;
+    resultCode.value = &upgraderet;
+    resultCode.nxt = &cur;
+    cur = &resultCode;
+
+    ver.key =  CN_OC_JSON_KEY_VERSION;
+    ver.type = EN_OC_MQTT_PROFILE_VALUE_INT;
+    ver.value =(void *) version;
+    ver.nxt = cur;
+    cur = &ver;
+
+    if(progress > 0){
+        prog.key =  CN_OC_JSON_KEY_PROGRESS;
+        prog.type = EN_OC_MQTT_PROFILE_VALUE_INT;
+        prog.value = &progress;
+        prog.nxt = cur;
+        cur = &prog;
+    }
+    event.event_time = NULL;
+    event.event_type = "upgrade_process_report";
+    event.service_id = "$ota";
+    event.paras = cur;
+
+    ret = oc_mqtt_profile_reportevent((char *)deviceID, &event);
+
+    return ret;
+}
+
+
+
