@@ -312,6 +312,7 @@ int oc_mqtt_profile_getshadow(char *deviceid,oc_mqtt_profile_shadowget_t *payloa
 #define CN_OC_MQTT_EVENTTYPE_VERSIONREPORT  "version_report"
 #define CN_OC_MQTT_EVENTTYPE_FWUPGRADE      "firmware_upgrade"
 #define CN_OC_MQTT_EVENTTYPE_SWUPGRADE      "software_upgrade"
+#define CN_OC_MQTT_EVENTTYPE_UPGRADEPROGRESSREPORT "upgrade_progress_report"
 
 typedef struct
 {
@@ -333,8 +334,7 @@ typedef struct
  *
  * */
 int oc_mqtt_profile_reportevent(char *deviceid,oc_mqtt_profile_event_t *event);
-int OcMqttReportVersionEvent(const char *deviceID, const char *softVersion, const char *firmVersion);
-int OcMqttReportUpgradeProcessEvent(const char *deviceID, int upgraderet, const char *version, int progress);
+
 
 
 #endif /* LITEOS_LAB_IOT_LINK_OC_OC_MQTT_OC_MQTT_PROFILE_OC_MQTT_PROFILE_H_ */

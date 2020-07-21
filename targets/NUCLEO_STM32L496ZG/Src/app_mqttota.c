@@ -48,16 +48,8 @@
 #include <ota_flag.h>
 #include <ota_https.h>
 #include <cJSON.h>
+#include <oc_mqtt_event.h>
 
-const char* g_signature_public=
-"-----BEGIN RSA PUBLIC KEY-----\r\n"
-"MIIBCgKCAQEAz9u5vpDoov9DDrkWkwdWQnLjiYXO3RuwXmcSCu/N1Wrv55b3w/BJ\r\n"
-"iXl7mTv1zWrU9gL+jdMXrxP6BK5nOh3wa8tiPGqPnM2tNCUVEt2dmDasroh8VVv1\r\n"
-"9yOUiSlNGSZ+UrnuUlAzMLt0GJrCPHesapOQ7OkAQd2SNbQfv/vFmXzUcNUAZxr4\r\n"
-"zJmSoZT9aXTO/RfShlsgrPtpz+8sejcRR5s4LKn5KsJwjqJ+sHmnEKlcGiciNGIx\r\n"
-"Ajf2nFigo7QrZ+4o6kvweNA05Ptg29j/0JPr0WbyLsCWDVaAneelh8Sl3TPdZYOM\r\n"
-"6iHE2k1sLBeP7X3lymWh3BZ9rU+xngi9lQIDAQAB\r\n"
-"-----END RSA PUBLIC KEY-----\r\n";
 
 //#define CN_SERVER_IPV4       "iot-mqtts.cn-north-4.myhuaweicloud.com"
 #define CN_SERVER_IPV4                 "121.36.42.100"
@@ -128,6 +120,13 @@ static int RcvMsgDealHook(oc_mqtt_profile_msgrcv_t *msg)
     return ret;
 }
 
+
+static int DealUpgradeLog(int ret, int total, int cur){
+
+    return OcMqttReportUpgradeProcessEvent(CN_EP_DEVICEID,ret,NULL,cur*100/total);
+}
+
+
 static int DealFirmupgradeEvent(cJSON *event)
 {
     int ret = -1;
@@ -150,12 +149,13 @@ static int DealFirmupgradeEvent(cJSON *event)
 
         if((NULL != objVersion) && (NULL != objUrl) && (NULL != objFileSize) && \
                 (NULL != objAccesstoken) && (NULL != objSign)){
+            memset(&otapara, 0, sizeof(otapara));
             otapara.authorize = cJSON_GetStringValue(objAccesstoken);
             otapara.url = cJSON_GetStringValue(objUrl);
             otapara.signature = cJSON_GetStringValue(objSign);
             otapara.file_size = objFileSize->valueint;
             otapara.version = cJSON_GetStringValue(objVersion);
-            otapara.signature_public = g_signature_public;
+            otapara.report_progress = DealUpgradeLog;
             ///< here we do the firmware download
             ret =  ota_https_download(&otapara);
             if(ret != 0){
