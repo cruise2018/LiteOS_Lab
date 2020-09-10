@@ -49,7 +49,7 @@
 #endif
 
 #ifndef CONFIG_EC2X_CMD_BASETIME
-#define CONFIG_EC2X_CMD_BASETIME (1*1000)
+#define CONFIG_EC2X_CMD_BASETIME (5*1000)
 #endif
 
 
